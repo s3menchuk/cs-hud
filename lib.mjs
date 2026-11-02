@@ -1,4 +1,5 @@
-export const defaults = { event: 'COUNTER-STRIKE 2', stage: 'SHOWMATCH · BEST OF 3', leftName: 'TEAM SPIRIT', rightName: 'NATUS VINCERE', leftTag: 'TS', rightTag: 'NAVI', leftLogo: '', rightLogo: '', leftSide: 'CT', accentLeft: '#78d5f5', accentRight: '#edc67a', showEquipment: true, showFocus: true, showRadar: true };
+import { seriesDefaults } from './public/series.js';
+export const defaults = { event: 'COUNTER-STRIKE 2', stage: 'SHOWMATCH · BEST OF 3', leftName: 'TEAM SPIRIT', rightName: 'NATUS VINCERE', leftTag: 'TS', rightTag: 'NAVI', leftLogo: '', rightLogo: '', leftSide: 'CT', accentLeft: '#78d5f5', accentRight: '#edc67a', showEquipment: true, showFocus: true, showRadar: true, ...seriesDefaults };
 export function vector(value) {
   const values=Array.isArray(value)?value:typeof value==='string'?value.split(','):null;
   if(!values||values.length!==3||values.some(v=>v===null||String(v).trim()===''))return null;
