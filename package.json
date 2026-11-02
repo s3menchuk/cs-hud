@@ -1,0 +1,8 @@
+{
+  "name": "cs2-broadcast-hud",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.mjs", "test": "node --test", "test:server": "node scripts/verify-server.mjs" },
+  "engines": { "node": ">=20" }
+}
