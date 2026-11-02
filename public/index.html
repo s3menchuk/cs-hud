@@ -1,30 +1,79 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FRAME / CS2 Broadcast HUD</title><link rel="stylesheet" href="/style.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CS2 HUD</title><link rel="stylesheet" href="/style.css"></head>
 <body>
 <div id="studio">
-  <header class="app-header"><a class="brand" href="/"><span class="brand-mark">F<span>▰</span></span>FRAME<span class="brand-divider"></span><small>BROADCAST STUDIO</small></a><div class="header-right"><span class="connection"><i></i><span id="connection">ДЕМО-РЕЖИМ</span></span><span class="version">CS2 HUD / V1.0</span></div></header>
+  <header class="app-header">
+    <a class="brand" href="/">CS2 HUD</a>
+    <div class="header-right">
+      <span class="connection"><i></i><span id="connection"></span></span>
+      <label class="language-control"><span data-i18n="language">Язык</span><select id="admin-language" data-i18n-aria="language"><option value="ru">Русский</option><option value="en">English</option></select></label>
+      <a href="/overlay" target="_blank" class="button primary"><span data-i18n="openOverlay">Открыть оверлей</span> ↗</a>
+    </div>
+  </header>
   <main>
-    <div class="workspace-title"><div><div class="eyebrow">ВАШ ЭФИР. ВАШ СТИЛЬ.</div><h1>Режиссёрская <span>/</span></h1><p>Всё, что происходит в игре. В одном кадре.</p></div><a href="/overlay" target="_blank" class="button primary">Открыть оверлей <span>↗</span></a></div>
-    <div class="workspace-grid"><section class="preview-panel"><div class="panel-heading"><span><i class="live-dot"></i> ПРЕДПРОСМОТР ЭФИРА</span><span>1920 × 1080 <b>16:9</b></span></div><div id="viewport"><div id="hud"></div></div><div class="preview-footer"><span><i class="live-dot"></i> <span id="source-status">Демонстрационные данные</span></span><span>ПРОЗРАЧНЫЙ ФОН В OBS <span class="checker-icon">▧</span></span></div></section>
-    <aside class="control-panel"><div class="tabs"><button class="tab active" data-tab="design">Оформление</button><button class="tab" data-tab="series">Серия</button><button class="tab" data-tab="connect">Подключение</button></div><div id="design-tab"><form id="settings-form"><div class="control-section"><h2>Турнир <span>01</span></h2><label>Название события<input name="event" maxlength="60"></label><label>Этап / формат<input name="stage" maxlength="80"></label></div><div class="control-section"><h2>Команды <span>02</span></h2><div class="team-label"><i class="ct-dot"></i> ЛЕВАЯ КОМАНДА <span>CT / T</span></div><div class="team-input"><label class="logo-upload" title="Загрузить логотип PNG, JPG или WebP"><span id="left-logo-preview">＋</span><input type="file" accept="image/png,image/jpeg,image/webp" data-logo="leftLogo"></label><input name="leftName" aria-label="Название левой команды" maxlength="40"><input name="accentLeft" type="color" aria-label="Цвет левой команды"></div><div class="team-label"><i class="t-dot"></i> ПРАВАЯ КОМАНДА</div><div class="team-input"><label class="logo-upload" title="Загрузить логотип PNG, JPG или WebP"><span id="right-logo-preview">＋</span><input type="file" accept="image/png,image/jpeg,image/webp" data-logo="rightLogo"></label><input name="rightName" aria-label="Название правой команды" maxlength="40"><input name="accentRight" type="color" aria-label="Цвет правой команды"></div><button type="button" id="swap" class="text-button">⇄ <span>Сменить стороны CT / T</span></button></div><div class="control-section"><h2>Элементы HUD <span>03</span></h2><label class="switch-row">Мини-карта<input type="checkbox" name="showRadar"><span class="switch"></span></label><label class="switch-row">Стоимость снаряжения<input type="checkbox" name="showEquipment"><span class="switch"></span></label><label class="switch-row">Карточка наблюдаемого игрока<input type="checkbox" name="showFocus"><span class="switch"></span></label></div><button class="button primary save" type="submit">Применить оформление <span>✓</span></button><div id="save-status" role="status"></div></form></div><div id="series-tab" hidden>
-      <form id="series-form">
-        <div class="control-section"><h2>Серия карт <span>BO3 / BO5</span></h2>
-          <p>Укажите результаты сыгранных карт. Победители и счёт серии появятся в эфире после сохранения.</p>
-          <label>Формат<select name="seriesFormat"><option value="3">BO3 — до 2 побед</option><option value="5">BO5 — до 3 побед</option></select></label>
-          <label>Текущая карта<select name="currentMap"></select></label>
+    <div class="workspace-grid">
+      <section class="preview-panel"><div class="panel-heading"><span data-i18n="preview">Предпросмотр</span><span>1920 × 1080</span></div><div id="viewport"><div id="hud"></div></div></section>
+      <aside class="control-panel">
+        <div class="tabs"><button class="tab active" data-tab="design" data-i18n="design">Оформление</button><button class="tab" data-tab="editor" data-i18n="editor">Редактор</button><button class="tab" data-tab="players" data-i18n="players">Игроки</button><button class="tab" data-tab="series" data-i18n="series">Серия</button><button class="tab" data-tab="connect" data-i18n="connect">Подключение</button></div>
+        <div id="design-tab"><form id="settings-form">
+          <div class="control-section"><h2 data-i18n="teams">Команды</h2>
+            <div class="team-label"><i class="ct-dot"></i><span data-i18n="team1">КОМАНДА 1</span></div>
+            <div class="team-input"><label class="logo-upload" data-i18n-title="uploadLogo"><span id="left-logo-preview">＋</span><input type="file" accept="image/png,image/jpeg,image/webp" data-logo="leftLogo" data-i18n-aria="uploadLogo"></label><input name="leftName" data-i18n-aria="teamName1" maxlength="40"><input name="accentLeft" type="color" data-i18n-aria="teamColor1"></div>
+            <div class="team-label"><i class="t-dot"></i><span data-i18n="team2">КОМАНДА 2</span></div>
+            <div class="team-input"><label class="logo-upload" data-i18n-title="uploadLogo"><span id="right-logo-preview">＋</span><input type="file" accept="image/png,image/jpeg,image/webp" data-logo="rightLogo" data-i18n-aria="uploadLogo"></label><input name="rightName" data-i18n-aria="teamName2" maxlength="40"><input name="accentRight" type="color" data-i18n-aria="teamColor2"></div>
+            <button type="button" id="swap" class="text-button">⇄ <span data-i18n="swap">Сменить стороны CT / T</span></button><p id="side-status" aria-live="polite"></p>
+          </div>
+          <button class="button primary save" type="submit" data-i18n="apply">Применить</button><div id="save-status" role="status"></div>
+        </form></div>
+        <div id="editor-tab" hidden>
+          <div class="control-section"><h2 data-i18n="layoutTitle">Редактор HUD</h2><p data-i18n="layoutHint">Выберите элемент в превью. Перетащите рамку или потяните угол для изменения размера.</p>
+            <label><span data-i18n="layoutElement">Элемент</span><select name="part"><option value="scoreboard" data-i18n="part_scoreboard">Верхнее табло</option><option value="leftRoster" data-i18n="part_leftRoster">Игроки слева</option><option value="rightRoster" data-i18n="part_rightRoster">Игроки справа</option><option value="radar" data-i18n="part_radar">Мини-карта</option><option value="focus" data-i18n="part_focus">Текущий игрок</option></select></label>
+            <div class="editor-coordinates"><label>X<input name="x" type="number" min="0" max="1920" step="1"></label><label>Y<input name="y" type="number" min="0" max="1080" step="1"></label></div>
+            <label class="editor-slider"><span data-i18n="layoutScale">Размер</span><output data-value="scale"></output><input name="scale" type="range" min="50" max="150" step="1"></label>
+            <label class="editor-slider"><span data-i18n="layoutOpacity">Непрозрачность элемента</span><output data-value="opacity"></output><input name="opacity" type="range" min="20" max="100" step="1"></label>
+            <label class="switch-row"><span data-i18n="layoutVisible">Показывать элемент</span><input name="visible" type="checkbox"><span class="switch"></span></label>
+            <button type="button" class="editor-link" data-editor="resetPart" data-i18n="layoutResetPart">Сбросить элемент</button>
+          </div>
+          <div class="control-section"><h2 data-i18n="layoutTheme">Общее оформление</h2>
+            <div class="editor-colors"><label><span data-i18n="layoutPanel">Фон</span><input name="panel" type="color"></label><label><span data-i18n="layoutText">Текст</span><input name="text" type="color"></label><label><span data-i18n="layoutMuted">Детали</span><input name="muted" type="color"></label></div>
+            <label class="editor-slider"><span data-i18n="layoutBackground">Непрозрачность фона</span><output data-value="backgroundOpacity"></output><input name="backgroundOpacity" type="range" min="0" max="100" step="1"></label>
+            <label class="editor-slider"><span data-i18n="layoutRadius">Скругление</span><output data-value="radius"></output><input name="radius" type="range" min="0" max="24" step="1"></label>
+            <label><span data-i18n="layoutFont">Шрифт</span><select name="font"><option value="condensed" data-i18n="layoutFontCondensed">Узкий</option><option value="sans" data-i18n="layoutFontSans">Обычный</option><option value="mono" data-i18n="layoutFontMono">Моноширинный</option></select></label>
+            <label class="switch-row"><span data-i18n="layoutGrid">Сетка в редакторе</span><input name="grid" type="checkbox" checked><span class="switch"></span></label>
+          </div>
+          <div class="editor-actions"><div><button type="button" data-editor="undo" data-i18n="layoutUndo">Назад</button><button type="button" data-editor="redo" data-i18n="layoutRedo">Вперёд</button></div><div><button type="button" data-editor="import" data-i18n="layoutImport">Импорт JSON</button><button type="button" data-editor="export" data-i18n="layoutExport">Экспорт JSON</button></div><button type="button" class="editor-link" data-editor="resetAll" data-i18n="layoutResetAll">Исходное оформление</button>
+            <button type="button" class="button primary" data-editor="save" data-i18n="layoutSave">Применить к трансляции</button><button type="button" class="editor-link" data-editor="discard" data-i18n="layoutDiscard">Отменить изменения</button><p id="layout-status" role="status"></p>
+          </div><input id="layout-file" type="file" accept="application/json,.json" hidden>
         </div>
-        <div class="control-section series-editor"><h2>История результатов</h2>
-          <div class="series-column-labels"><span>КАРТА</span><span id="series-left-label">ЛЕВАЯ</span><span id="series-right-label">ПРАВАЯ</span><span title="Карта сыграна">✓</span></div>
-          <div id="series-rows"></div>
-          <datalist id="series-map-options"><option value="Dust2"><option value="Mirage"><option value="Inferno"><option value="Nuke"><option value="Ancient"><option value="Anubis"><option value="Overpass"><option value="Train"><option value="Vertigo"><option value="Cache"><option value="Office"><option value="Italy"></datalist>
-          <p>Счёт вводится в порядке команд слева и справа. Отметьте ✓ у завершённых карт. Результаты сохраняются вручную и не меняются при смене CT/T.</p>
-        </div>
-        <button class="button primary save" type="submit">Сохранить серию <span>✓</span></button><p id="series-status" role="status"></p>
-      </form>
-    </div><div id="connect-tab" hidden><div class="control-section"><h2>Источник в OBS</h2><p>Добавьте «Браузер» размером 1920 × 1080 и укажите адрес:</p><code id="obs-url"></code><button class="button secondary" id="copy">Скопировать адрес</button><h2>Подключение к CS2</h2><p>1. Скачайте конфигурацию GSI.<br>2. Поместите её в <code>game/csgo/cfg</code> внутри папки CS2.<br>3. Перезапустите игру и подключитесь как наблюдатель или GOTV.</p><a href="/gamestate_integration_broadcast.cfg" download class="button secondary">↓ Скачать GSI-конфиг</a><p>Данные всех игроков доступны наблюдателю. HUD подключится автоматически. Запускайте приложение на компьютере с CS2.</p></div></div></aside></div>
-    <section class="demo-bar"><div><span class="demo-icon">▷</span><div><h3>Тестовый эфир</h3><p>Проверьте HUD до начала матча</p></div></div><div class="demo-actions"><button data-demo="damage">−25 HP</button><button data-demo="bomb">Установка C4</button><button data-demo="reset">↺ Сбросить</button></div><span class="demo-hint">Нажмите на игрока в превью, чтобы наблюдать</span></section>
-    <footer class="app-footer"><span>FRAME <b>/</b> СОЗДАН ДЛЯ ИГРЫ. ГОТОВ К ЭФИРУ.</span><span>LOCAL BROADCAST SYSTEM <i></i></span></footer>
+        <div id="players-tab" hidden><div class="control-section avatar-section">
+          <h2 data-i18n="avatars">Аватарки игроков</h2>
+          <p data-i18n="avatarHint">Загрузите фото игрока. Привязка по Steam ID сохраняется при смене ника и сторон.</p>
+          <p id="avatar-demo-hint" data-i18n="avatarDemoHint" hidden>Сейчас показаны демоигроки. Для настройки реального состава подключите CS2.</p>
+          <div id="avatar-players"></div>
+          <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <p data-i18n="avatarFormats">PNG, JPG или WebP до 5 МБ. Фото автоматически обрезается до квадрата и сохраняется сразу.</p>
+        </div></div>
+        <div id="series-tab" hidden><form id="series-form">
+          <div class="control-section"><h2 data-i18n="seriesTitle">Серия карт</h2>
+            <label><span data-i18n="format">Формат</span><select name="seriesFormat"><option value="1" data-i18n="bo1">BO1 — одна карта</option><option value="3" data-i18n="bo3">BO3 — до 2 побед</option><option value="5" data-i18n="bo5">BO5 — до 3 побед</option></select></label>
+            <label><span data-i18n="currentMap">Текущая карта</span><select name="currentMap"></select></label>
+          </div>
+          <div class="control-section series-editor"><h2 data-i18n="results">Результаты карт</h2>
+            <div class="series-column-labels"><span data-i18n="map">КАРТА</span><span id="series-left-label"></span><span id="series-right-label"></span><span data-i18n-title="completed">✓</span></div>
+            <div id="series-rows"></div>
+            <datalist id="series-map-options"><option value="Dust2"><option value="Mirage"><option value="Inferno"><option value="Nuke"><option value="Ancient"><option value="Anubis"><option value="Overpass"><option value="Train"><option value="Vertigo"><option value="Cache"><option value="Office"><option value="Italy"></datalist>
+            <p data-i18n="seriesHint">Счёт команд 1 и 2. Отметьте ✓ у завершённых карт.</p>
+          </div>
+          <button class="button primary save" type="submit" data-i18n="saveSeries">Сохранить серию</button><p id="series-status" role="status"></p>
+        </form></div>
+        <div id="connect-tab" hidden><div class="control-section">
+          <h2 data-i18n="obsSource">Источник в OBS</h2><p data-i18n="obsHint">Источник «Браузер», размер 1920 × 1080. Адрес:</p><code id="obs-url"></code><button class="button secondary" id="copy" data-i18n="copy">Скопировать адрес</button>
+          <h2 data-i18n="gsiTitle">Подключение CS2</h2><ol class="connection-steps"><li data-i18n="gsi1">Скачайте GSI-конфиг.</li><li data-i18n="gsi2">Поместите его в game/csgo/cfg внутри папки CS2.</li><li data-i18n="gsi3">Перезапустите CS2 и откройте матч наблюдателем/GOTV или демозапись.</li></ol>
+          <a href="/gamestate_integration_broadcast.cfg" download class="button secondary" data-i18n="download">Скачать GSI-конфиг</a><p data-i18n="gsiHint">CS2 и HUD должны работать на одном компьютере.</p>
+        </div></div>
+      </aside>
+    </div>
   </main>
 </div><div id="toast" role="status"></div><script type="module" src="/app.js"></script>
 </body></html>

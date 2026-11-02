@@ -3,11 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { defaultLayout } from '../public/layout.js';
 
 const port=32199;
 const testDirectory=await mkdtemp(join(tmpdir(),'cs2-hud-test-'));
 const testSettings=join(testDirectory,'settings.json');
-const server=spawn(process.execPath,['server.mjs'],{cwd:new URL('../',import.meta.url),env:{...process.env,HUD_PORT:String(port),HUD_SETTINGS_FILE:testSettings},stdio:['ignore','pipe','pipe']});
+const testAvatars=join(testDirectory,'avatars');
+const server=spawn(process.execPath,['server.mjs'],{cwd:new URL('../',import.meta.url),env:{...process.env,HUD_PORT:String(port),HUD_SETTINGS_FILE:testSettings,HUD_AVATAR_DIRECTORY:testAvatars},stdio:['ignore','pipe','pipe']});
+const avatarFiles=[];
 try {
   await new Promise((resolve,reject)=>{
     const timeout=setTimeout(()=>reject(new Error('Server startup timeout')),10000);
@@ -18,11 +21,32 @@ try {
   const base=`http://127.0.0.1:${port}`;
   const get=path=>fetch(base+path);
   const post=(path,body)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  for(const path of ['/','/overlay','/app.js','/series.js','/radar.js','/radar-data.js','/style.css','/gamestate_integration_broadcast.cfg']) assert.equal((await get(path)).status,200,path);
+  for(const path of ['/','/overlay','/app.js','/ammo.js','/player-avatars.js','/layout.js','/layout-editor.js','/series.js','/teams.js','/i18n.js','/radar.js','/radar-data.js','/style.css','/gamestate_integration_broadcast.cfg']) assert.equal((await get(path)).status,200,path);
   const image=await get('/assets/radars/de_dust2_radar_psd.png');assert.equal(image.status,200);assert.equal(image.headers.get('content-type'),'image/png');
   assert.equal((await get('/assets/radars/unknown.png')).status,404);
   let payload=await (await get('/api/state')).json();assert.equal(payload.state.players.length,10);
   const stream=await get('/events');const reader=stream.body.getReader();assert.ok(new TextDecoder().decode((await reader.read()).value).startsWith('data: '));await reader.cancel();
+  const layout=defaultLayout();layout.elements.scoreboard.x=700;layout.theme.radius=8;
+  assert.equal((await post('/api/settings',{layout})).status,200);
+  payload=await (await get('/api/state')).json();assert.deepEqual(payload.settings.layout,layout);
+  assert.deepEqual(JSON.parse(await readFile(testSettings,'utf8')).layout,layout);
+  assert.equal((await post('/api/settings',{layout:{...layout,theme:{...layout.theme,panel:'invalid'}}})).status,400);
+  payload=await (await get('/api/state')).json();assert.deepEqual(payload.settings.layout,layout);
+  const avatarImage='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=';
+  const [uploaded,changed]=await Promise.all([post('/api/avatars',{id:'0',image:avatarImage}),post('/api/settings',{leftName:'Avatar test team'})]);
+  assert.equal(uploaded.status,200);assert.equal(changed.status,200);
+  const avatarResult=await uploaded.json(),avatarUrl=avatarResult.playerAvatars['0'].url;
+  avatarFiles.push(avatarUrl.split('/').pop());
+  const avatarResponse=await get(avatarUrl);assert.equal(avatarResponse.status,200);assert.equal(avatarResponse.headers.get('content-type'),'image/png');
+  assert.deepEqual(Buffer.from(await avatarResponse.arrayBuffer()),Buffer.from(avatarImage.split(',')[1],'base64'));
+  payload=await (await get('/api/state')).json();assert.equal(payload.settings.leftName,'Avatar test team');assert.equal(payload.settings.playerAvatars['0'].url,avatarUrl);
+  assert.equal(JSON.parse(await readFile(testSettings,'utf8')).playerAvatars['0'].url,avatarUrl);
+  assert.equal((await post('/api/avatars',{id:'../file',image:avatarImage})).status,400);
+  assert.equal((await post('/api/avatars',{id:'1',image:'data:image/svg+xml;base64,PHN2Zy8+'})).status,400);
+  assert.equal((await post('/api/settings',{playerAvatars:{}})).status,200);
+  payload=await (await get('/api/state')).json();assert.equal(payload.settings.playerAvatars['0'].url,avatarUrl);
+  const removed=await fetch(base+'/api/avatars',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'0'})});assert.equal(removed.status,200);
+  payload=await (await get('/api/state')).json();assert.equal(payload.settings.playerAvatars['0'],undefined);
   const series={seriesFormat:5,currentMap:2,seriesMaps:[{map:'Mirage',leftScore:13,rightScore:8,completed:true}]};
   assert.equal((await post('/api/settings',series)).status,200);
   payload=await (await get('/api/state')).json();assert.deepEqual(payload.settings.seriesMaps,series.seriesMaps);assert.equal(payload.settings.seriesFormat,5);
@@ -37,5 +61,15 @@ try {
   assert.deepEqual(payload.state.players[0].position,[-500,1200,-600]);assert.deepEqual(payload.state.players[0].forward,[0,1,0]);assert.equal(payload.state.mapId,'de_nuke');
   assert.equal((await post('/api/demo',{type:'reset'})).status,409);
   assert.equal((await post('/gsi',{})).status,400);
+  const roster=flip=>({map:{name:'de_nuke'},allplayers:Object.fromEntries(Array.from({length:10},(_,i)=>[String(i),{name:'Player '+i,team:(i<5)!==flip?'CT':'T',state:{health:100}}]))});
+  await post('/gsi',roster(false));payload=await (await get('/api/state')).json();assert.equal(payload.state.teamLeftSide,'T');
+  await post('/gsi',roster(true));payload=await (await get('/api/state')).json();assert.equal(payload.state.teamLeftSide,'CT');
+  assert.equal((await post('/api/settings',{leftSide:'T'})).status,200);
+  payload=await (await get('/api/state')).json();assert.equal(payload.state.teamLeftSide,'T');
+  assert.deepEqual(payload.settings.seriesMaps,series.seriesMaps);
+  const bo1={seriesFormat:1,currentMap:1,seriesMaps:[{map:'Dust2',leftScore:13,rightScore:9,completed:true}]};
+  assert.equal((await post('/api/settings',bo1)).status,200);
+  payload=await (await get('/api/state')).json();assert.equal(payload.settings.seriesFormat,1);assert.equal(payload.settings.seriesMaps.length,1);
+  assert.equal(JSON.parse(await readFile(testSettings,'utf8')).seriesFormat,1);
   console.log('PASS: HTTP assets, SSE, series validation/persistence, CT/T swaps, demo actions, GSI, live/demo isolation.');
-} finally {server.kill();await unlink(testSettings).catch(error=>{if(error.code!=='ENOENT')throw error;});await rmdir(testDirectory);}
+} finally {server.kill();await unlink(testSettings).catch(error=>{if(error.code!=='ENOENT')throw error;});for(const file of avatarFiles)await unlink(join(testAvatars,file));await rmdir(testAvatars).catch(error=>{if(error.code!=='ENOENT')throw error;});await rmdir(testDirectory);}

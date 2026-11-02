@@ -4,6 +4,12 @@ const equipmentIcons={"ak47":{"viewBox":"0 0 88.5 32","body":"<g> <g> <g> <path 
 // END GENERATED EQUIPMENT ICONS
 import { createRadarController, playerNumber } from './radar.js';
 import { seriesSummary, renderSeriesHistory, validateSeries } from './series.js';
+import { displaySettings } from './teams.js';
+import { renderAmmo } from './ammo.js';
+import { avatarURL, prepareAvatar } from './player-avatars.js';
+import { applyLayout, layoutForSettings } from './layout.js';
+import { createLayoutEditor } from './layout-editor.js';
+import { t, getLanguage, setLanguage, applyTranslations, translateError } from './i18n.js';
 const overlay=location.pathname==='/overlay';
 document.documentElement.classList.toggle('overlay-mode',overlay);
 document.body.classList.toggle('overlay-mode',overlay);
@@ -36,59 +42,115 @@ const gun=(name)=>{
  return asset?`<svg class="weapon" viewBox="${asset.viewBox}" fill="currentColor" role="img" aria-label="${escape(name)}">${asset.body}</svg>`:'<span class="weapon" aria-hidden="true"></span>';
 };
 const money=n=>'$'+Number(n).toLocaleString('en-US');
-let current, settings, pendingLogos={}, dirty=false, editingSide;
+let current, settings, viewSettings, pendingLogos={}, dirty=false, editingSide;
+let layoutEditor=null,renderedVisibility='';
+let manualSideDirty=false;
+let avatarSignature='';
+const avatarBusy=new Set();
+function fillAvatarPanel(){
+ const signature=JSON.stringify([current.players.map(p=>[p.id,p.name,p.team]),settings.playerAvatars,getLanguage(),[...avatarBusy]]);
+ if(signature===avatarSignature)return;
+ avatarSignature=signature;
+ const players=[...current.players];
+ for(const [id,record] of Object.entries(settings.playerAvatars||{}))if(!players.some(p=>p.id===id))players.push({id,name:record.name||id,team:''});
+ document.getElementById('avatar-demo-hint').hidden=current.mode!=='demo';
+ document.getElementById('avatar-players').innerHTML=players.map(player=>{
+  const image=avatarURL(settings,player.id),busy=avatarBusy.has(player.id);
+  return `<div class="avatar-edit-row"><span class="avatar-thumb">${image?`<img alt="" src="${image}">`:''}</span><div class="avatar-player-info"><strong>${escape(player.name)}</strong><small>${escape(player.id)} · ${escape(player.team||t('avatarOffline'))}</small><div class="avatar-actions"><button type="button" data-avatar-action="upload" data-player-id="${escape(player.id)}" ${busy?'disabled':''}>${busy?t('avatarSaving'):t(image?'avatarReplace':'avatarUpload')}</button>${image?`<button type="button" data-avatar-action="remove" data-player-id="${escape(player.id)}" ${busy?'disabled':''}>${t('avatarRemove')}</button>`:''}</div></div></div>`;
+ }).join('');
+}
 let seriesDirty=false,seriesSignature='';
 function seriesFormatChanged(){
  const form=document.getElementById('series-form'),format=Number(form.elements.seriesFormat.value),selected=Number(form.elements.currentMap.value)||1;
- form.elements.currentMap.innerHTML=Array.from({length:format},(_,i)=>`<option value="${i+1}">Карта ${i+1}</option>`).join('');
+ form.elements.currentMap.innerHTML=Array.from({length:format},(_,i)=>`<option value="${i+1}">${t('mapNumber',{n:i+1})}</option>`).join('');
  form.elements.currentMap.value=String(Math.min(format,selected));
  document.querySelectorAll('.series-edit-row').forEach((row,i)=>row.hidden=i>=format);
 }
 function fillSeriesForm(){
  if(seriesDirty)return;
- const signature=JSON.stringify([settings.seriesFormat,settings.currentMap,settings.seriesMaps,settings.leftName,settings.rightName]);
+ const signature=JSON.stringify([settings.seriesFormat,settings.currentMap,settings.seriesMaps,settings.leftName,settings.rightName,getLanguage()]);
  if(signature===seriesSignature)return;
  seriesSignature=signature;
  const series=seriesSummary(settings),form=document.getElementById('series-form');
  form.elements.seriesFormat.value=String(series.seriesFormat);
  document.getElementById('series-rows').innerHTML=Array.from({length:5},(_,i)=>{
   const row=series.seriesMaps[i]||{map:'',leftScore:null,rightScore:null,completed:false};
-  return `<div class="series-edit-row" data-index="${i}"><span>${i+1}</span><input data-field="map" aria-label="Карта ${i+1}: название" list="series-map-options" maxlength="40" placeholder="Карта ${i+1}" value="${escape(row.map)}"><input data-field="leftScore" type="number" min="0" max="99" step="1" aria-label="Карта ${i+1}: счёт левой команды" value="${row.leftScore??''}"><input data-field="rightScore" type="number" min="0" max="99" step="1" aria-label="Карта ${i+1}: счёт правой команды" value="${row.rightScore??''}"><input data-field="completed" type="checkbox" aria-label="Карта ${i+1} сыграна" ${row.completed?'checked':''}></div>`;
+  return `<div class="series-edit-row" data-index="${i}"><span>${i+1}</span><input data-field="map" aria-label="${t('mapName',{n:i+1})}" list="series-map-options" maxlength="40" placeholder="${t('mapNumber',{n:i+1})}" value="${escape(row.map)}"><input data-field="leftScore" type="number" min="0" max="99" step="1" aria-label="${t('mapScore1',{n:i+1})}" value="${row.leftScore??''}"><input data-field="rightScore" type="number" min="0" max="99" step="1" aria-label="${t('mapScore2',{n:i+1})}" value="${row.rightScore??''}"><input data-field="completed" type="checkbox" aria-label="${t('mapDone',{n:i+1})}" ${row.completed?'checked':''}></div>`;
  }).join('');
  seriesFormatChanged();form.elements.currentMap.value=String(series.currentMap);
  document.getElementById('series-left-label').textContent=settings.leftName;
  document.getElementById('series-right-label').textContent=settings.rightName;
 }
-function teamLogo(side){const url=settings[side+'Logo'];return url?`<img alt="Логотип команды" src="${escape(url)}">`:`<span class="team-monogram">${escape(settings[side+'Tag'])}</span>`;}
-function playerCard(p,side){const dead=p.health<=0;return `<button class="player ${dead?'dead':''} ${current.observed===p.id?'observed':''} ${p.health>0&&p.health<=40?'low':''}" data-player="${escape(p.id)}" style="--hp:${Math.max(0,Math.min(100,p.health))}%"><div class="slot">${playerNumber(p,current.players)}</div><div class="player-content"><div class="player-top"><strong>${escape(p.name)}</strong><span class="kd">${p.kills}<small> / </small>${p.deaths}<small> K/D</small></span></div><div class="player-main"><span class="health">${dead?icon('skull'):p.health}<small>${dead?'OUT':'HP'}</small></span><div class="weapon-wrap">${dead?'':gun(p.weapon)}<span>${dead?'ВЫБЫЛ ИЗ РАУНДА':escape(p.weapon)}</span></div><span class="player-money">${money(p.money)}</span></div><div class="player-bottom"><span class="armor">${icon(p.helmet?'helmet':'shield')} ${p.armor}</span><span class="utility">${dead?'':p.grenades.map(g=>icon(g)).join('')}</span><span class="kit ${p.kit&&!dead?'has-kit':''}">${p.kit&&!dead?icon('kit')+' KIT':'—'}</span></div></div><div class="health-track"><i></i></div></button>`;}
-function teamColumn(side,team){const players=current.players.filter(p=>p.team===team);const alive=players.filter(p=>p.health>0).length;return `<section class="team-column ${side}"><div class="roster-heading"><span>${teamLogo(side)}<b>${escape(settings[side+'Name'])}</b></span><small>${alive}<span> / ${players.length} ALIVE</span></small></div>${players.map(p=>playerCard(p,side)).join('')}${settings.showEquipment?`<div class="economy"><span>СНАРЯЖЕНИЕ</span><b>${money(players.reduce((a,p)=>a+p.equipment,0))}</b></div>`:''}</section>`;}
+function teamLogo(side){const url=viewSettings[side+'Logo'];return url?`<img alt="Логотип команды" src="${escape(url)}">`:`<span class="team-monogram">${escape(viewSettings[side+'Tag'])}</span>`;}
+function playerCard(p,side){const dead=p.health<=0;return `<button class="player ${avatarURL(viewSettings,p.id)?'with-avatar':''} ${dead?'dead':''} ${current.observed===p.id?'observed':''} ${p.health>0&&p.health<=50?'low':''}" data-player="${escape(p.id)}" style="--hp:${Math.max(0,Math.min(100,p.health))}%;--hp-color:${p.health<=25?'#ff6565':p.health<=50?'#ffc66a':'var(--team)'}"><div class="slot">${playerNumber(p,current.players)}</div><div class="player-content"><div class="player-top"><strong>${escape(p.name)}</strong><span class="kd">${p.kills}<small> / </small>${p.deaths}</span></div><div class="player-main"><span class="health">${dead?icon('skull'):p.health}</span><div class="weapon-wrap">${dead?'':gun(p.weapon)}</div><span class="player-money">${money(p.money)}</span></div><div class="player-bottom"><span class="armor">${icon(p.helmet?'helmet':'shield')}</span><span class="utility">${dead?'':p.grenades.map(g=>icon(g)).join('')}</span><span class="kit ${p.kit&&!dead?'has-kit':''}">${p.kit&&!dead?icon('kit'):''}</span></div></div>${avatarURL(viewSettings,p.id)?`<img class="player-portrait" src="${avatarURL(viewSettings,p.id)}" alt="">`:''}<div class="health-track" role="meter" aria-label="Здоровье" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.max(0,Math.min(100,p.health))}"><i></i></div></button>`;}
+function teamColumn(side,team){const players=current.players.filter(p=>p.team===team);return `<section class="team-column ${side}">${players.map(p=>playerCard(p,side)).join('')}</section>`;}
 function render(){
- const series=seriesSummary(settings);
- const left=settings.leftSide,right=left==='CT'?'T':'CT';
- hud.style.setProperty('--ct',settings.accentLeft);hud.style.setProperty('--t',settings.accentRight);
+ if(layoutEditor)layoutEditor.sync(settings);
+ const activeLayout=layoutEditor?layoutEditor.getDraft():layoutForSettings(settings);
+ renderedVisibility=JSON.stringify([activeLayout.elements.radar.visible,activeLayout.elements.focus.visible]);
+ viewSettings=displaySettings(settings,current.teamLeftSide||settings.leftSide);
+ viewSettings.showRadar=activeLayout.elements.radar.visible;viewSettings.showFocus=activeLayout.elements.focus.visible;
+ const series=seriesSummary(viewSettings);
+ const left=viewSettings.leftSide,right=left==='CT'?'T':'CT';
+ hud.style.setProperty('--ct',viewSettings.accentLeft);hud.style.setProperty('--t',viewSettings.accentRight);
  const seconds=Math.ceil(current.seconds),time=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
  const p=current.players.find(p=>p.id===current.observed);
- const phase=current.bomb?'C4 УСТАНОВЛЕНА':({freezetime:'ЗАКУПКА',warmup:'РАЗМИНКА',over:'РАУНД ЗАВЕРШЁН',paused:'ПАУЗА',gameover:'МАТЧ ЗАВЕРШЁН'}[current.phase]||'РАУНД '+String(current.round).padStart(2,'0'));
- hudContent.innerHTML=`<div class="preview-scenery"><div class="scene-grid"></div><div class="architecture arch-one"></div><div class="architecture arch-two"></div><div class="scene-floor"></div><span class="scene-crosshair">+</span><div class="preview-watermark">FRAME<span>GAME FEED PREVIEW</span></div></div><div class="map-label"><span class="map-symbol">◈</span><b>${escape(current.map)}</b><span>BEST OF ${series.seriesFormat}</span><i></i><span>MAP ${series.currentMap}</span></div><div class="scoreboard"><div class="event-strip"><span>${escape(settings.event)}</span><span>${escape(settings.stage.replace(/(?:BEST OF|BO)\s*[35]/gi,'BEST OF '+series.seriesFormat))}</span></div><div class="score-main"><div class="score-team left-score">${teamLogo('left')}<div><strong>${escape(settings.leftName)}</strong><small>${left==='CT'?'COUNTER-TERRORISTS':'TERRORISTS'}</small></div></div><b class="score left-score">${left==='CT'?current.scoreCT:current.scoreT}</b><div class="round-clock ${current.bomb?'planted':''}"><small>${current.bomb?icon('bomb'):''}${phase}</small><strong>${time}</strong></div><b class="score right-score">${right==='CT'?current.scoreCT:current.scoreT}</b><div class="score-team right-score"><div><strong>${escape(settings.rightName)}</strong><small>${right==='CT'?'COUNTER-TERRORISTS':'TERRORISTS'}</small></div>${teamLogo('right')}</div></div><div class="series-bar"><span>${Array.from({length:series.needed},(_,i)=>i<series.leftWins?'●':'○').join(' ')}</span><small>BO${series.seriesFormat} · КАРТЫ ${series.leftWins}:${series.rightWins}<i> / </i> ${current.players.filter(p=>p.team===left&&p.health>0).length} VS ${current.players.filter(p=>p.team===right&&p.health>0).length}</small><span>${Array.from({length:series.needed},(_,i)=>i<series.rightWins?'●':'○').join(' ')}</span></div>${renderSeriesHistory(settings,current)}</div><div class="on-air-brand">FRAME <span>LIVE</span></div>${teamColumn('left',left)}${teamColumn('right',right)}${settings.showFocus&&p?`<div class="focus-card" style="--team:${p.team===left?settings.accentLeft:settings.accentRight}"><div class="focus-label"><span>НАБЛЮДЕНИЕ</span><span>${escape(p.team===left?settings.leftName:settings.rightName)}</span></div><div class="focus-main"><div class="focus-avatar">${escape(p.name.slice(0,1).toUpperCase())}</div><div class="focus-name"><strong>${escape(p.name)}</strong><span>${icon('cross')} ${p.kills} <i>/</i> ${p.deaths} <small>K / D</small></span></div><div class="focus-hp">${p.health}<small>HP</small></div><div class="focus-ammo">${gun(p.weapon)}<span>${p.ammo}<small> / ${p.reserve}</small></span></div></div><div class="focus-health"><i style="width:${Math.max(0,Math.min(100,p.health))}%"></i></div></div>`:''}`;
- radarController.update(current,settings);
+ const phase=current.bomb?'C4 УСТАНОВЛЕНА':({freezetime:'ЗАКУПКА',warmup:'РАЗМИНКА',over:'РАУНД ЗАВЕРШЁН',paused:'ПАУЗА',gameover:'МАТЧ ЗАВЕРШЁН'}[current.phase]||'');
+ hudContent.innerHTML=`<div class="preview-scenery"></div><div class="scoreboard"><div class="score-main"><div class="score-team left-score">${teamLogo('left')}<div><strong>${escape(viewSettings.leftName)}</strong><small>${left==='CT'?'COUNTER-TERRORISTS':'TERRORISTS'}</small></div></div><b class="score left-score">${left==='CT'?current.scoreCT:current.scoreT}</b><div class="round-clock ${current.bomb?'planted':''}">${phase?`<small>${current.bomb?icon('bomb'):''}${phase}</small>`:''}<strong>${time}</strong></div><b class="score right-score">${right==='CT'?current.scoreCT:current.scoreT}</b><div class="score-team right-score"><div><strong>${escape(viewSettings.rightName)}</strong><small>${right==='CT'?'COUNTER-TERRORISTS':'TERRORISTS'}</small></div>${teamLogo('right')}</div></div>${series.seriesFormat===1?'':`<div class="series-bar"><span>${Array(series.leftWins).fill('●').join(' ')}</span><span>${Array(series.rightWins).fill('●').join(' ')}</span></div>${renderSeriesHistory(viewSettings,current)}`}</div>${teamColumn('left',left)}${teamColumn('right',right)}${viewSettings.showFocus&&p?`<div class="focus-card" style="--team:${p.team===left?viewSettings.accentLeft:viewSettings.accentRight};--hp-color:${p.health<=25?'#ff6565':p.health<=50?'#ffc66a':'var(--team)'}"><div class="focus-main">${avatarURL(viewSettings,p.id)?`<div class="focus-avatar"><img src="${avatarURL(viewSettings,p.id)}" alt=""></div>`:''}<div class="focus-name"><strong>${escape(p.name)}</strong><span>${icon('cross')} ${p.kills} <i>/</i> ${p.deaths} </span></div><div class="focus-hp">${p.health}</div><div class="focus-ammo">${gun(p.weapon)}${renderAmmo(p,'focus-ammo-count')}</div></div><div class="focus-equipment"><span class="focus-utility" aria-label="Гранаты">${p.health>0?p.grenades.map(g=>icon(g)).join(''):''}</span>${p.health>0&&p.kit?`<span class="focus-kit" title="Набор для обезвреживания бомбы">${icon('kit')}</span>`:''}</div><div class="focus-health" role="meter" aria-label="Здоровье" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.max(0,Math.min(100,p.health))}"><i style="width:${Math.max(0,Math.min(100,p.health))}%"></i></div></div>`:''}`;
+ radarController.update(current,viewSettings);
+ applyLayout(hud,activeLayout);
  if(!overlay){
-  document.getElementById('connection').textContent=connected?'CS2 ПОДКЛЮЧЕНА':current.mode==='demo'?'ДЕМО-РЕЖИМ':'НЕТ СИГНАЛА CS2';
+  document.getElementById('connection').textContent=!serverAvailable?t('serverOffline'):connected?t('connected'):current.mode==='demo'?t('demo'):t('noSignal');
   document.querySelector('.connection').classList.toggle('online',connected);
-  document.getElementById('source-status').textContent=connected?'Данные CS2 · в реальном времени':current.mode==='demo'?'Демонстрационные данные':'Сигнал CS2 потерян · последние данные';
-  document.querySelectorAll('[data-demo]').forEach(b=>b.disabled=connected);
+  const teamSide=current.teamLeftSide||settings.leftSide;
+  document.getElementById('side-status').textContent=t('sideStatus',{side1:teamSide,side2:teamSide==='CT'?'T':'CT'}); 
+  fillAvatarPanel();
  }
 }
-let connected=false;
-function receive(payload){current=payload.state;settings=payload.settings;connected=payload.connected;if(!overlay){if(!dirty)fillForm();fillSeriesForm();}render();}
-function fillForm(){const form=document.getElementById('settings-form');for(const el of form.elements){if(el.name&&el.name in settings){if(el.type==='checkbox')el.checked=settings[el.name];else el.value=settings[el.name];}}editingSide=settings.leftSide;for(const side of ['left','right'])document.getElementById(side+'-logo-preview').innerHTML=settings[side+'Logo']?`<img alt="" src="${escape(settings[side+'Logo'])}">`:'＋';}
+let connected=false,serverAvailable=true;
+function receive(payload){serverAvailable=true;current=payload.state;settings=payload.settings;connected=payload.connected;if(!overlay){if(!dirty)fillForm();fillSeriesForm();}render();}
+function fillForm(){const form=document.getElementById('settings-form');for(const el of form.elements){if(el.name&&el.name in settings){if(el.type==='checkbox')el.checked=settings[el.name];else el.value=settings[el.name];}}editingSide=current.teamLeftSide||settings.leftSide;for(const side of ['left','right'])document.getElementById(side+'-logo-preview').innerHTML=settings[side+'Logo']?`<img alt="" src="${escape(settings[side+'Logo'])}">`:'＋';}
 function resize(){const box=overlay?{width:innerWidth,height:innerHeight}:document.getElementById('viewport').getBoundingClientRect();const scale=Math.min(box.width/1920,box.height/1080);hud.style.transform=`scale(${scale})`;if(overlay){hud.style.left=(innerWidth-1920*scale)/2+'px';hud.style.top=(innerHeight-1080*scale)/2+'px';}}
 window.addEventListener('resize',resize);if(!overlay)new ResizeObserver(resize).observe(document.getElementById('viewport'));resize();
 function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),3500);}
-async function post(url,data){const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const value=await res.json();if(!res.ok)throw new Error(value.error||'Ошибка запроса');return value;}
-const events=new EventSource('/events');events.onmessage=e=>{try{receive(JSON.parse(e.data));}catch(err){console.error(err);}};events.onerror=()=>{connected=false;if(current)render();if(!overlay)document.getElementById('connection').textContent='СЕРВЕР НЕДОСТУПЕН';};
+async function post(url,data,method='POST'){const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const value=await res.json();if(!res.ok)throw new Error(translateError(value.error||t('requestError')));return value;}
+const events=new EventSource('/events');events.onmessage=e=>{try{receive(JSON.parse(e.data));}catch(err){console.error(err);}};events.onerror=()=>{serverAvailable=false;connected=false;if(current)render();if(!overlay)document.getElementById('connection').textContent=t('serverOffline');};
 if(!overlay){
+ layoutEditor=createLayoutEditor({hud,getSettings:()=>settings||{},onSave:async layout=>{await post('/api/settings',{layout});settings.layout=layout;render();},onChange:()=>{if(current&&layoutEditor){const elements=layoutEditor.getDraft().elements;if(JSON.stringify([elements.radar.visible,elements.focus.visible])!==renderedVisibility)render();}}});
+ const avatarInput=document.getElementById('avatar-file');
+ document.getElementById('avatar-players').onclick=async event=>{
+  const button=event.target.closest('[data-avatar-action]');if(!button)return;
+  const id=button.dataset.playerId;if(avatarBusy.has(id))return;
+  if(button.dataset.avatarAction==='upload'){avatarInput.dataset.playerId=id;avatarInput.click();return;}
+  avatarBusy.add(id);fillAvatarPanel();
+  try{const result=await post('/api/avatars',{id},'DELETE');settings.playerAvatars=result.playerAvatars;render();toast(t('avatarRemoved'));}
+  catch(error){toast(translateError(error.message));}
+  finally{avatarBusy.delete(id);fillAvatarPanel();}
+ };
+ avatarInput.onchange=async()=>{
+  const file=avatarInput.files[0],id=avatarInput.dataset.playerId;avatarInput.value='';
+  if(!file||!id||avatarBusy.has(id))return;
+  avatarBusy.add(id);fillAvatarPanel();
+  try{const image=await prepareAvatar(file);const result=await post('/api/avatars',{id,image});settings.playerAvatars=result.playerAvatars;render();toast(t('avatarSaved'));}
+  catch(error){toast(error.message.startsWith('avatar')?t(error.message):translateError(error.message));}
+  finally{avatarBusy.delete(id);fillAvatarPanel();}
+ };
+ applyTranslations();
+ const languageSelect=document.getElementById('admin-language');
+ languageSelect.value=getLanguage();
+ languageSelect.onchange=()=>{
+  setLanguage(languageSelect.value);applyTranslations();
+  const form=document.getElementById('series-form');
+  for(const option of form.elements.currentMap.options)option.textContent=t('mapNumber',{n:option.value});
+  document.querySelectorAll('.series-edit-row').forEach((row,i)=>{
+   for(const [field,key] of [['map','mapName'],['leftScore','mapScore1'],['rightScore','mapScore2'],['completed','mapDone']])row.querySelector(`[data-field="${field}"]`).setAttribute('aria-label',t(key,{n:i+1}));
+   row.querySelector('[data-field="map"]').placeholder=t('mapNumber',{n:i+1});
+  });
+  document.getElementById('series-status').textContent=seriesDirty?t('unsaved'):'';
+  if(current){fillSeriesForm();render();}layoutEditor.translate();
+ };
  const seriesForm=document.getElementById('series-form');
- seriesForm.addEventListener('input',()=>{seriesDirty=true;document.getElementById('series-status').textContent='Есть несохранённые изменения';});
+ seriesForm.addEventListener('input',()=>{seriesDirty=true;document.getElementById('series-status').textContent=t('unsaved');});
  seriesForm.elements.seriesFormat.onchange=seriesFormatChanged;
  seriesForm.onsubmit=async e=>{
   e.preventDefault();
@@ -97,16 +159,14 @@ if(!overlay){
    const value=field=>row.querySelector(`[data-field="${field}"]`);
    return {map:value('map').value,leftScore:value('leftScore').value===''?null:Number(value('leftScore').value),rightScore:value('rightScore').value===''?null:Number(value('rightScore').value),completed:value('completed').checked};
   });
-  try{const data=validateSeries({seriesFormat,currentMap,seriesMaps});await post('/api/settings',data);Object.assign(settings,data);seriesDirty=false;seriesSignature='';fillSeriesForm();render();document.getElementById('series-status').textContent='Серия сохранена';toast('История карт обновлена');}
-  catch(error){document.getElementById('series-status').textContent=error.message;toast(error.message);}
+  try{const data=validateSeries({seriesFormat,currentMap,seriesMaps});await post('/api/settings',data);Object.assign(settings,data);seriesDirty=false;seriesSignature='';fillSeriesForm();render();document.getElementById('series-status').textContent=t('savedSeries');toast(t('updatedSeries'));}
+  catch(error){document.getElementById('series-status').textContent=translateError(error.message);toast(translateError(error.message));}
  };
  document.getElementById('obs-url').textContent=location.origin+'/overlay';
- document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));for(const name of ['design','series','connect'])document.getElementById(name+'-tab').hidden=b.dataset.tab!==name;});
+ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));for(const name of ['design','editor','players','series','connect'])document.getElementById(name+'-tab').hidden=b.dataset.tab!==name;layoutEditor.setActive(b.dataset.tab==='editor');});
  document.getElementById('settings-form').addEventListener('input',()=>dirty=true);
- document.getElementById('settings-form').onsubmit=async e=>{e.preventDefault();const form=e.target;const values=Object.fromEntries(new FormData(form));values.showEquipment=form.elements.showEquipment.checked;values.showFocus=form.elements.showFocus.checked;values.showRadar=form.elements.showRadar.checked;values.leftSide=editingSide;Object.assign(values,pendingLogos);try{await post('/api/settings',values);dirty=false;pendingLogos={};toast('Оформление применено к эфиру');}catch(err){toast(err.message);}};
- document.getElementById('swap').onclick=()=>{editingSide=editingSide==='CT'?'T':'CT';dirty=true;toast(`Слева: ${editingSide}. Нажмите «Применить оформление».`);};
- document.querySelectorAll('[data-logo]').forEach(input=>input.onchange=async()=>{const file=input.files[0];if(!file)return;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>500000){toast('Выберите PNG, JPG или WebP до 500 КБ');return;}const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});pendingLogos[input.dataset.logo]=data;dirty=true;document.getElementById(input.dataset.logo.replace('Logo','-logo-preview')).innerHTML=`<img alt="" src="${escape(data)}">`;});
- document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+'/overlay');toast('Адрес оверлея скопирован');}catch{toast('Скопируйте адрес из поля выше');}};
- document.querySelectorAll('[data-demo]').forEach(b=>b.onclick=async()=>{try{await post('/api/demo',{type:b.dataset.demo});}catch(err){toast(err.message);}});
- hud.onclick=async e=>{const player=e.target.closest('[data-player]');if(player&&current.mode==='demo'){try{await post('/api/demo',{type:'focus',id:player.dataset.player});}catch(err){toast(err.message);}}};
+ document.getElementById('settings-form').onsubmit=async e=>{e.preventDefault();const form=e.target;const values=Object.fromEntries(new FormData(form));if(manualSideDirty)values.leftSide=editingSide;Object.assign(values,pendingLogos);try{await post('/api/settings',values);dirty=false;manualSideDirty=false;pendingLogos={};toast(t('applied'));}catch(err){toast(err.message);}};
+ document.getElementById('swap').onclick=()=>{editingSide=editingSide==='CT'?'T':'CT';dirty=true;manualSideDirty=true;toast(t('swapHint',{side:editingSide}));};
+ document.querySelectorAll('[data-logo]').forEach(input=>input.onchange=async()=>{const file=input.files[0];if(!file)return;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>500000){toast(t('logoError'));return;}const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});pendingLogos[input.dataset.logo]=data;dirty=true;document.getElementById(input.dataset.logo.replace('Logo','-logo-preview')).innerHTML=`<img alt="" src="${escape(data)}">`;});
+ document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+'/overlay');toast(t('copied'));}catch{toast(t('copyError'));}};
 }

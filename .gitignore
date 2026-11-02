@@ -1,3 +1,6 @@
 node_modules/
 settings.json
 *.log
+uploads/
+
+settings.*.json

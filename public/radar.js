@@ -95,7 +95,7 @@ export function createRadarController(host){
     }
     for(const [id,track] of tracks){if(!active.has(id)){track.node.remove();tracks.delete(id);}}
     if(root!==next){
-      for(const selector of ['.radar-waiting','.radar-caption','.radar-level']){
+      for(const selector of ['.radar-waiting','.radar-level']){
         const old=root.querySelector(selector),replacement=next.querySelector(selector);
         if(old&&replacement){if(old.innerHTML!==replacement.innerHTML)old.innerHTML=replacement.innerHTML;}
         else if(old)old.remove();else if(replacement)root.append(replacement);
@@ -123,5 +123,5 @@ export function renderRadar(state,settings){
   const bombPoint=['planted','defusing','dropped','planting'].includes(state.bombState)?worldToRadar(state.bombPosition,map):null;
   const bomb=bombPoint?`<g data-radar-id="bomb" class="radar-bomb ${state.bomb?'radar-bomb-planted':''}" transform="translate(${bombPoint.x} ${bombPoint.y})"><title>C4</title><rect x="-17" y="-17" width="34" height="34" rx="4"/><text y="1">C4</text></g>`:'';
   const sites=map.sites.map(site=>`<g class="radar-site" transform="translate(${site.x*1024} ${site.y*1024})"><rect x="-25" y="-25" width="50" height="50" rx="5"/><text y="2">${site.label}</text></g>`).join('');
-  return `<section class="radar" aria-label="Мини-карта ${escape(map.name)}"><svg class="radar-map" viewBox="0 0 1024 1024"><image href="${layer.image}" width="1024" height="1024"/>${sites}${markers}${bomb}</svg>${map.layers.length>1?`<span class="radar-level">${layer.name==='lower'?'НИЖНИЙ ЭТАЖ':'ВЕРХНИЙ ЭТАЖ'}</span>`:''}${positioned.length===0?'<div class="radar-waiting">ОЖИДАНИЕ КООРДИНАТ<span>Обновите GSI-конфиг и перезапустите CS2</span></div>':''}<span class="radar-caption">${state.mode==='demo'?'ДЕМО':positioned.length===0?'НЕТ КООРДИНАТ':`${positioned.length} ИГРОКОВ`}<i></i> ${escape(map.name).toUpperCase()}</span></section>`;
+  return `<section class="radar" aria-label="Мини-карта ${escape(map.name)}"><svg class="radar-map" viewBox="0 0 1024 1024"><image href="${layer.image}" width="1024" height="1024"/>${sites}${markers}${bomb}</svg>${map.layers.length>1?`<span class="radar-level">${layer.name==='lower'?'НИЖНИЙ ЭТАЖ':'ВЕРХНИЙ ЭТАЖ'}</span>`:''}${positioned.length===0?'<div class="radar-waiting">ОЖИДАНИЕ КООРДИНАТ<span>Обновите GSI-конфиг и перезапустите CS2</span></div>':''}</section>`;
 }

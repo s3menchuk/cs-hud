@@ -14,3 +14,14 @@ test('GSI tolerates missing observer-only fields without demo data',()=>{
 test('Demo contains two full teams and a valid observed player',()=>{
   const state=demo();assert.equal(state.players.filter(p=>p.team==='CT').length,5);assert.equal(state.players.filter(p=>p.team==='T').length,5);assert.ok(state.players.some(p=>p.id===state.observed));
 });
+
+test('GSI preserves magazine reserve counts and distinguishes missing ammo from an empty magazine',()=>{
+  const result=normalizeGsi({map:{name:'de_mirage'},allplayers:{
+    rifle:{team:'CT',weapons:{gun:{name:'weapon_ak47',type:'Rifle',state:'active',ammo_clip:24,ammo_clip_max:30,ammo_reserve:3}}},
+    empty:{team:'T',weapons:{gun:{name:'weapon_glock',type:'Pistol',state:'active',ammo_clip:0,ammo_clip_max:20,ammo_reserve:0}}},
+    knife:{team:'T',weapons:{knife:{name:'weapon_knife',type:'Knife',state:'active'}}},
+  }});
+  const rifle=result.players.find(p=>p.id==='rifle'),empty=result.players.find(p=>p.id==='empty'),knife=result.players.find(p=>p.id==='knife');
+  assert.equal(rifle.ammo,24);assert.equal(rifle.ammoClipMax,30);assert.equal(rifle.reserve,3);assert.equal(rifle.reserveUnit,'magazines');
+  assert.equal(empty.ammo,0);assert.equal(empty.reserve,0);assert.equal(knife.ammo,null);assert.equal(knife.reserve,null);
+});
