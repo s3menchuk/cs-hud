@@ -13,9 +13,11 @@ export function radarLayer(map,z){
   if(!Number.isFinite(z))return map.layers.find(l=>l.name==='default')||map.layers[0];
   return map.layers.find(l=>Number.isFinite(l.AltitudeMin)&&Number.isFinite(l.AltitudeMax)&&z>=l.AltitudeMin&&z<l.AltitudeMax)||map.layers.find(l=>l.name==='default')||map.layers[0];
 }
-export function playerNumber(player,players){
-  const valid=players.every(p=>Number.isInteger(p.slot)&&p.slot>=0&&p.slot<=10)&&new Set(players.map(p=>p.slot%10)).size===players.length;
-  return valid?player.slot%10:(players.findIndex(p=>p.id===player.id)+1)%10;
+export function playerNumber(player,players,leftSide='CT'){
+  const teammates=players.filter(p=>p.team===player.team);
+  const index=teammates.findIndex(p=>p.id===player.id);
+  if(index<0||index>=5)return '';
+  return (index+(player.team===leftSide?1:6))%10;
 }
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function shortestAngle(from,to){return ((to-from+180)%360+360)%360-180;}
@@ -118,7 +120,7 @@ export function renderRadar(state,settings){
     const forward=p.forward;
     const angle=Array.isArray(forward)&&forward.every(Number.isFinite)?Math.atan2(-forward[1],forward[0])*180/Math.PI+90:null;
     const team=p.team===settings.leftSide?'radar-left':'radar-right';
-    return `<g data-radar-id="player-${escape(p.id)}" class="radar-player ${team} ${dead?'radar-dead':''} ${selected?'radar-observed':''} ${otherLayer?'radar-other-floor':''}" transform="translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})"><title>${escape(p.name)} · ${p.health} HP${otherLayer?' · другой этаж':''}</title>${selected?'<circle class="radar-ring" r="32"/>':''}${dead?'<path class="radar-death" d="m-13-13 26 26m0-26-26 26"/>':`${angle===null?'':`<path class="radar-direction" d="M-13-19 0-43 13-19Z" transform="rotate(${angle.toFixed(1)})"/>`}<circle class="radar-dot" r="21"/><text class="radar-number" y="1">${playerNumber(p,state.players)}</text>${otherLayer?`<text class="radar-floor-indicator" x="27" y="-17">${p.position[2]<(observed?.position?.[2]??0)?'↓':'↑'}</text>`:''}`}</g>`;
+    return `<g data-radar-id="player-${escape(p.id)}" class="radar-player ${team} ${dead?'radar-dead':''} ${selected?'radar-observed':''} ${otherLayer?'radar-other-floor':''}" transform="translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})"><title>${escape(p.name)} · ${p.health} HP${otherLayer?' · другой этаж':''}</title>${selected?'<circle class="radar-ring" r="32"/>':''}${dead?'<path class="radar-death" d="m-13-13 26 26m0-26-26 26"/>':`${angle===null?'':`<path class="radar-direction" d="M-13-19 0-43 13-19Z" transform="rotate(${angle.toFixed(1)})"/>`}<circle class="radar-dot" r="21"/><text class="radar-number" y="1">${playerNumber(p,state.players,settings.leftSide)}</text>${otherLayer?`<text class="radar-floor-indicator" x="27" y="-17">${p.position[2]<(observed?.position?.[2]??0)?'↓':'↑'}</text>`:''}`}</g>`;
   }).join('');
   const bombPoint=['planted','defusing','dropped','planting'].includes(state.bombState)?worldToRadar(state.bombPosition,map):null;
   const bomb=bombPoint?`<g data-radar-id="bomb" class="radar-bomb ${state.bomb?'radar-bomb-planted':''}" transform="translate(${bombPoint.x} ${bombPoint.y})"><title>C4</title><rect x="-17" y="-17" width="34" height="34" rx="4"/><text y="1">C4</text></g>`:'';

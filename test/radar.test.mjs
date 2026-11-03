@@ -27,8 +27,9 @@ test('GSI preserves valid coordinates and rejects missing or malformed vectors',
   assert.equal(state.mapId,'de_dust2');assert.deepEqual(state.players[0].position,[-500,1200,-10]);assert.deepEqual(state.bombPosition,[100,200,300]);
 });
 test('Radar numbers stay unique when GSI omits observer slots',()=>{
-  const players=Array.from({length:10},(_,i)=>({id:String(i),slot:0}));
-  assert.equal(new Set(players.map(p=>playerNumber(p,players))).size,10);
+  const players=Array.from({length:10},(_,i)=>({id:String(i),slot:0,team:i%2===0?'CT':'T'}));
+  assert.deepEqual(players.map(p=>playerNumber(p,players)),[1,6,2,7,3,8,4,9,5,0]);
+  assert.deepEqual(players.map(p=>playerNumber(p,players,'T')),[6,1,7,2,8,3,9,4,0,5]);
   const d=demo();assert.deepEqual(d.players.map(p=>playerNumber(p,d.players)),[1,2,3,4,5,6,7,8,9,0]);
 });
 test('Radar renders demo, missing coordinates and unsupported maps honestly',()=>{
