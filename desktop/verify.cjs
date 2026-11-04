@@ -7,7 +7,7 @@ const { ensureHudServer, createOverlayWindow, probeHud } = require('./runtime.cj
 
 const cache = path.resolve(__dirname, '../node_modules/.cache');
 fs.mkdirSync(cache, { recursive: true });
-const directory = fs.mkdtempSync(path.join(cache, 'frame-overlay-test-'));
+const directory = fs.mkdtempSync(path.join(cache, 'cs2-broadcast-hud-test-'));
 app.setPath('userData', path.join(directory, 'profile'));
 let server, window;
 app.on('window-all-closed', () => {});
@@ -48,8 +48,8 @@ app.whenReady().then(async () => {
     if (process.platform === 'win32') {
       const handle = window.getNativeWindowHandle();
       const hwnd = handle.length === 8 ? handle.readBigUInt64LE().toString() : handle.readUInt32LE().toString();
-      const script = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class FrameWindowStyle { [DllImport("user32.dll", EntryPoint="GetWindowLongW")] public static extern int GetWindowLong(IntPtr hwnd, int index); }'
-[FrameWindowStyle]::GetWindowLong([IntPtr]::new([Int64]::Parse('${hwnd}')), -20)`;
+      const script = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class HudWindowStyle { [DllImport("user32.dll", EntryPoint="GetWindowLongW")] public static extern int GetWindowLong(IntPtr hwnd, int index); }'
+[HudWindowStyle]::GetWindowLong([IntPtr]::new([Int64]::Parse('${hwnd}')), -20)`;
       const style = Number(execFileSync('powershell.exe', ['-NoProfile', '-Command', script], { encoding: 'utf8', windowsHide: true }).trim()) >>> 0;
       assert.ok(style & 0x20, 'WS_EX_TRANSPARENT: mouse input passes through');
       assert.ok(style & 0x08000000, 'WS_EX_NOACTIVATE: overlay cannot steal keyboard focus');

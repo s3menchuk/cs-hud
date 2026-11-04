@@ -15,9 +15,9 @@ const messages={
  }
 };
 let language='ru';
-try{if(globalThis.localStorage?.getItem('frame-admin-language')==='en')language='en';}catch{}
+try{if(globalThis.localStorage?.getItem('cs2-broadcast-hud-admin-language')==='en')language='en';}catch{}
 export const getLanguage=()=>language;
-export function setLanguage(value){language=value==='en'?'en':'ru';try{globalThis.localStorage?.setItem('frame-admin-language',language);}catch{}return language;}
+export function setLanguage(value){language=value==='en'?'en':'ru';try{globalThis.localStorage?.setItem('cs2-broadcast-hud-admin-language',language);}catch{}return language;}
 export function t(key,values={}){return (messages[language][key]||messages.ru[key]||key).replace(/\{(\w+)\}/g,(_m,name)=>String(values[name]??''));}
 export function applyTranslations(root=document){
  root.documentElement?.setAttribute('lang',language);

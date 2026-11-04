@@ -19,7 +19,7 @@ async function ensureHudServer({ port = 3199, settingsFile } = {}) {
   const child = utilityProcess.fork(path.join(project, 'server.mjs'), [], {
     cwd: project,
     env: { ...process.env, HUD_PORT: String(port), ...(settingsFile ? { HUD_SETTINGS_FILE: settingsFile } : {}) },
-    serviceName: 'FRAME HUD server',
+    serviceName: 'CS2 Broadcast Hud server',
     stdio: 'pipe',
   });
   let failure = '';
@@ -39,7 +39,7 @@ async function ensureHudServer({ port = 3199, settingsFile } = {}) {
 async function createOverlayWindow({ url, display, visible = true }) {
   const window = new BrowserWindow({
     ...display.bounds,
-    title: 'FRAME — CS2 overlay',
+    title: 'CS2 Broadcast Hud — локальный оверлей',
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
