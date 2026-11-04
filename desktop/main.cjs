@@ -1,5 +1,6 @@
 const { app, Menu, Tray, nativeImage, screen, globalShortcut, shell, dialog } = require('electron');
 const path = require('node:path');
+const { mkdir } = require('node:fs/promises');
 const { ensureHudServer, createOverlayWindow } = require('./runtime.cjs');
 
 app.setName('CS2 Broadcast Hud');
@@ -48,6 +49,10 @@ function updateMenu() {
   ]));
 }
 async function start() {
+  const dataDirectory = app.getPath('userData');
+  await mkdir(dataDirectory, { recursive: true });
+  process.env.HUD_SETTINGS_FILE = path.join(dataDirectory, 'settings.json');
+  process.env.HUD_AVATAR_DIRECTORY = path.join(dataDirectory, 'uploads', 'avatars');
   server = await ensureHudServer();
   if (quitting) { server.stop(); return; }
   const display = screen.getPrimaryDisplay();

@@ -8,12 +8,63 @@
     "test": "node --test",
     "test:server": "node scripts/verify-server.mjs",
     "overlay": "electron desktop/main.cjs",
-    "test:overlay": "electron desktop/verify.cjs"
+    "test:overlay": "electron desktop/verify.cjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win --publish never"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "electron": "45.2.1"
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "main": "desktop/main.cjs",
+  "productName": "CS2 Broadcast Hud",
+  "description": "CS2 broadcast HUD server and desktop overlay",
+  "build": {
+    "appId": "com.cs2broadcast.hud",
+    "productName": "CS2 Broadcast Hud",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "package.json",
+      "server.mjs",
+      "lib.mjs",
+      "avatars.mjs",
+      "desktop/main.cjs",
+      "desktop/runtime.cjs",
+      "desktop/icon.png",
+      "public/**/*",
+      "gamestate_integration_broadcast.cfg"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "${productName} Setup ${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName} Portable ${version}.${ext}"
+    }
   }
 }
