@@ -5,5 +5,5 @@ export function renderAmmo(player,className='player-ammo'){
   const hasReserve=Number.isInteger(player.reserve)&&player.reserve>=0;
   const individual=['shells','rounds'].includes(player.reserveUnit);
   const unit=individual?'патроны в запасе':'запасные магазины';
-  return `<span class="${className}" title="Патроны в магазине / ${unit}" aria-label="В магазине ${player.ammo}${hasReserve?', в запасе '+player.reserve:''}"><b>${player.ammo}</b>${hasReserve?`<small> / ${player.reserve}</small>${individual?round:magazine}`:''}</span>`;
+  return `<span class="${className}" title="Патроны в магазине / ${unit}" aria-label="В магазине ${player.ammo}${hasReserve?', в запасе '+player.reserve:''}"><b>${player.ammo}</b>${round}${hasReserve?`<small> / ${player.reserve}</small>${individual?round:magazine}`:''}</span>`;
 }

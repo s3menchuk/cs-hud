@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
-import { defaults, demo, normalizeGsi } from './lib.mjs';
+import { defaults, demo, normalizeGsi, createGrenadeTracker, createDeathPositionTracker, createBombTracker } from './lib.mjs';
 import { radarMaps } from './public/radar-data.js';
 import { validateSeries } from './public/series.js';
 import { createTeamTracker } from './public/teams.js';
@@ -27,6 +27,9 @@ function saveSettings(build){
 }
 let state=demo(), lastGsi=0;
 const teams=createTeamTracker();
+const grenadeTracker=createGrenadeTracker();
+const deathPositions=createDeathPositionTracker();
+const bombClock=createBombTracker();
 const clients=new Set();
 const broadcast=()=>{ const message=`data: ${JSON.stringify({state,settings,connected:Date.now()-lastGsi<10000})}\n\n`; for(const res of clients) res.write(message); };
 const files={'/':'public/index.html','/overlay':'public/index.html','/app.js':'public/app.js','/radar.js':'public/radar.js','/radar-data.js':'public/radar-data.js','/style.css':'public/style.css','/gamestate_integration_broadcast.cfg':'gamestate_integration_broadcast.cfg'};
@@ -34,6 +37,7 @@ files['/series.js']='public/series.js';
 files['/teams.js']='public/teams.js';
 files['/i18n.js']='public/i18n.js';
 files['/ammo.js']='public/ammo.js';
+files['/bomb.js']='public/bomb.js';
 files['/player-avatars.js']='public/player-avatars.js';
 files['/layout.js']='public/layout.js';
 files['/layout-editor.js']='public/layout-editor.js';
@@ -65,7 +69,7 @@ const server=http.createServer(async(req,res)=>{
       });
       broadcast();return reply(200,{ok:true,playerAvatars:settings.playerAvatars});
     }
-    if(path==='/gsi'&&req.method==='POST'){ const data=await jsonBody(req); if(!data.map) return reply(400,{error:'Expected a GSI map payload'}); state=normalizeGsi(data);state.teamLeftSide=teams.update(state,settings.leftSide);lastGsi=Date.now();broadcast();return reply(200,{ok:true}); }
+    if(path==='/gsi'&&req.method==='POST'){ const data=await jsonBody(req); if(!data.map) return reply(400,{error:'Expected a GSI map payload'}); state=bombClock.update(deathPositions.update(grenadeTracker.update(normalizeGsi(data))));state.teamLeftSide=teams.update(state,settings.leftSide);lastGsi=Date.now();broadcast();return reply(200,{ok:true}); }
     if(path==='/api/settings'&&req.method==='POST'){
       const data=await jsonBody(req);
       await saveSettings(current=>{const next={...current};
@@ -83,12 +87,12 @@ const server=http.createServer(async(req,res)=>{
       if(Object.hasOwn(data,'leftSide')&&settings.leftSide!==(state.teamLeftSide||settings.leftSide)){state.teamLeftSide=teams.reset(state,settings.leftSide);}
       broadcast();return reply(200,{ok:true});
     }
-    if(path==='/api/demo'&&req.method==='POST'){const action=await jsonBody(req);if(Date.now()-lastGsi<10000)return reply(409,{error:'CS2 подключена. Дождитесь отключения GSI.'});if(action.type==='reset')state=demo();if(action.type==='focus'&&state.players.some(p=>p.id===action.id))state.observed=action.id;if(action.type==='damage'){const p=state.players.find(p=>p.id===state.observed);if(p)p.health=Math.max(0,p.health-25);}if(action.type==='bomb')state.bomb=!state.bomb;broadcast();return reply(200,{ok:true});}
+    if(path==='/api/demo'&&req.method==='POST'){const action=await jsonBody(req);if(Date.now()-lastGsi<10000)return reply(409,{error:'CS2 подключена. Дождитесь отключения GSI.'});if(action.type==='reset')state=demo();if(action.type==='focus'&&state.players.some(p=>p.id===action.id))state.observed=action.id;if(action.type==='damage'){const p=state.players.find(p=>p.id===state.observed);if(p)p.health=Math.max(0,p.health-25);}if(action.type==='bomb'){state.bomb=!state.bomb;state.bombSeconds=state.bomb?40:null;state.bombDuration=40;if(state.bomb)state.seconds=40;state.updated=Date.now();}broadcast();return reply(200,{ok:true});}
     if(req.method!=='GET'||!files[path])return reply(404,{error:'Not found'});
     const file=files[path],body=await readFile(new URL(file,root));res.writeHead(200,{'Content-Type':mime[file.slice(file.lastIndexOf('.'))],'Cache-Control':'no-cache'});res.end(body);
   }catch(error){reply(400,{error:error.message});}
 });
-setInterval(()=>{if(state.mode==='demo') {state.seconds=state.seconds>0?state.seconds-1:115;state.updated=Date.now();}broadcast();},1000).unref();
+setInterval(()=>{if(state.mode==='demo') {state.seconds=state.seconds>0?state.seconds-1:115;if(state.bomb)state.bombSeconds=Math.max(0,(state.bombSeconds??40)-1);state.updated=Date.now();}broadcast();},1000).unref();
 server.on('error',error=>{
   if(error.code==='EADDRINUSE') {
     console.error(`Порт ${port} уже занят. Если HUD уже запущен, откройте http://localhost:${port}\nПовторный запуск не нужен. Для перезапуска сначала остановите предыдущий экземпляр HUD.`);

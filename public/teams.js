@@ -1,13 +1,7 @@
-// Stored team 1 / team 2 identities remain stable across halves and maps.
-// The broadcast always puts CT on the left and T on the right.
+// Team identities and screen positions stay fixed across halves and maps.
+// Only the current CT/T side of the left team changes.
 export function displaySettings(settings,leftSide=settings.leftSide){
-  if(leftSide!=='T')return {...settings,leftSide:'CT'};
-  const result={...settings,leftSide:'CT'};
-  for(const [left,right] of [['leftName','rightName'],['leftTag','rightTag'],['leftLogo','rightLogo'],['accentLeft','accentRight']]){
-    result[left]=settings[right];result[right]=settings[left];
-  }
-  result.seriesMaps=(settings.seriesMaps||[]).map(row=>({...row,leftScore:row.rightScore,rightScore:row.leftScore}));
-  return result;
+  return {...settings,leftSide:leftSide==='T'?'T':'CT'};
 }
 
 export function createTeamTracker(){

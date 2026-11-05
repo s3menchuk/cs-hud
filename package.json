@@ -9,6 +9,7 @@
     "test:server": "node scripts/verify-server.mjs",
     "overlay": "electron desktop/main.cjs",
     "test:overlay": "electron desktop/verify.cjs",
+    "test:radar": "electron desktop/verify-radar-motion.cjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win --publish never"
   },

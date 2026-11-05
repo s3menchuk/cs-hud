@@ -1,4 +1,5 @@
 // Valve map assets via MurkyYT/cs2-map-icons @ 8366882e4c2a50aaa6920f033ab074e04e271952.
+// Visible alpha bounds in the calibrated 1024-unit coordinate space.
 export const radarMaps={
   "de_dust2": {
     "name": "Dust II",
@@ -21,7 +22,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_dust2_radar_psd.png"
+        "image": "/assets/radars/de_dust2_radar_psd.png",
+        "bounds": [
+          54,
+          15,
+          920,
+          990
+        ]
       }
     ]
   },
@@ -46,7 +53,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_mirage_radar_psd.png"
+        "image": "/assets/radars/de_mirage_radar_psd.png",
+        "bounds": [
+          78,
+          95,
+          911,
+          833
+        ]
       }
     ]
   },
@@ -71,7 +84,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_inferno_radar_psd.png"
+        "image": "/assets/radars/de_inferno_radar_psd.png",
+        "bounds": [
+          70,
+          66,
+          903,
+          883
+        ]
       }
     ]
   },
@@ -98,13 +117,25 @@ export const radarMaps={
         "name": "default",
         "image": "/assets/radars/de_nuke_radar_psd.png",
         "AltitudeMax": 10000,
-        "AltitudeMin": -495
+        "AltitudeMin": -495,
+        "bounds": [
+          0,
+          0,
+          1024,
+          1024
+        ]
       },
       {
         "name": "lower",
         "image": "/assets/radars/de_nuke_lower_radar_psd.png",
         "AltitudeMax": -495,
-        "AltitudeMin": -10000
+        "AltitudeMin": -10000,
+        "bounds": [
+          0,
+          0,
+          1024,
+          1024
+        ]
       }
     ]
   },
@@ -129,7 +160,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_ancient_radar_psd.png"
+        "image": "/assets/radars/de_ancient_radar_psd.png",
+        "bounds": [
+          127,
+          77,
+          746,
+          860
+        ]
       }
     ]
   },
@@ -143,7 +180,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_anubis_radar_psd.png"
+        "image": "/assets/radars/de_anubis_radar_psd.png",
+        "bounds": [
+          153,
+          27,
+          733,
+          959
+        ]
       }
     ]
   },
@@ -168,7 +211,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_overpass_radar_psd.png"
+        "image": "/assets/radars/de_overpass_radar_psd.png",
+        "bounds": [
+          163,
+          20,
+          772,
+          1004
+        ]
       }
     ]
   },
@@ -195,13 +244,25 @@ export const radarMaps={
         "name": "default",
         "image": "/assets/radars/de_train_radar_psd.png",
         "AltitudeMax": 20000,
-        "AltitudeMin": -50
+        "AltitudeMin": -50,
+        "bounds": [
+          29,
+          69,
+          977,
+          887
+        ]
       },
       {
         "name": "lower",
         "image": "/assets/radars/de_train_lower_radar_psd.png",
         "AltitudeMax": -50,
-        "AltitudeMin": -5000
+        "AltitudeMin": -5000,
+        "bounds": [
+          29,
+          69,
+          977,
+          887
+        ]
       }
     ]
   },
@@ -228,13 +289,25 @@ export const radarMaps={
         "name": "default",
         "image": "/assets/radars/de_vertigo_radar_psd.png",
         "AltitudeMax": 20000,
-        "AltitudeMin": 11700
+        "AltitudeMin": 11700,
+        "bounds": [
+          117,
+          145,
+          701,
+          722
+        ]
       },
       {
         "name": "lower",
         "image": "/assets/radars/de_vertigo_lower_radar_psd.png",
         "AltitudeMax": 11700,
-        "AltitudeMin": -10000
+        "AltitudeMin": -10000,
+        "bounds": [
+          117,
+          127,
+          668,
+          770
+        ]
       }
     ]
   },
@@ -259,7 +332,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_cache_radar_psd.png"
+        "image": "/assets/radars/de_cache_radar_psd.png",
+        "bounds": [
+          31,
+          176,
+          935,
+          700
+        ]
       }
     ]
   },
@@ -284,7 +363,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/de_ancient_night_radar_psd.png"
+        "image": "/assets/radars/de_ancient_night_radar_psd.png",
+        "bounds": [
+          127,
+          76,
+          746,
+          861
+        ]
       }
     ]
   },
@@ -298,7 +383,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/cs_office_radar_psd.png"
+        "image": "/assets/radars/cs_office_radar_psd.png",
+        "bounds": [
+          11,
+          145,
+          1004,
+          847
+        ]
       }
     ]
   },
@@ -312,7 +403,13 @@ export const radarMaps={
     "layers": [
       {
         "name": "default",
-        "image": "/assets/radars/cs_italy_radar_psd.png"
+        "image": "/assets/radars/cs_italy_radar_psd.png",
+        "bounds": [
+          0,
+          0,
+          1024,
+          1024
+        ]
       }
     ]
   }

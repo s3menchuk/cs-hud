@@ -69,6 +69,9 @@ async function createOverlayWindow({ url, display, visible = true }) {
   try { await window.loadURL(url); }
   catch (error) { window.destroy(); throw error; }
   if (visible) window.showInactive();
+  // Windows clamps a newly constructed window to the taskbar work area.
+  // Reapply full monitor bounds after creation/showing so the overlay reaches every edge.
+  window.setBounds(display.bounds);
   return window;
 }
 

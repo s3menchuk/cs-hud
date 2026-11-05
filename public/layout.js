@@ -1,8 +1,8 @@
 export const layoutParts={
   scoreboard:{selector:'.scoreboard',x:610,y:18,width:700,height:90},
-  leftRoster:{selector:'.team-column.left',x:28,y:487,width:333,height:555},
-  rightRoster:{selector:'.team-column.right',x:1559,y:487,width:333,height:555},
-  radar:{selector:'.radar',x:28,y:90,width:333,height:300},
+  leftRoster:{selector:'.team-column.left',x:8,y:640,width:333,height:432},
+  rightRoster:{selector:'.team-column.right',x:1579,y:640,width:333,height:432},
+  radar:{selector:'.radar',x:8,y:8,width:480,height:432},
   focus:{selector:'.focus-card',x:715,y:925,width:490,height:117},
 };
 export function defaultLayout(){return {version:1,theme:{panel:'#111c23',text:'#ecf3f5',muted:'#9aadb7',backgroundOpacity:.94,radius:0,font:'condensed'},elements:Object.fromEntries(Object.entries(layoutParts).map(([id,p])=>[id,{x:p.x,y:p.y,scale:1,opacity:1,visible:true}]))};}
@@ -39,12 +39,30 @@ export function layoutForSettings(settings={}){
   const layout=defaultLayout();layout.elements.radar.visible=settings.showRadar!==false;layout.elements.focus.visible=settings.showFocus!==false;
   return layout;
 }
+// Keep each HUD part attached to its screen edge when the viewport is not 16:9.
+export function hudViewport(width,height){
+  const scale=Math.min(width/1920,height/1080);
+  return {scale,width:width/scale,height:height/scale};
+}
+export function viewportPosition(id,part,width=1920,height=1080){
+  const extraX=width-1920,extraY=height-1080;
+  return {x:part.x+(id==='rightRoster'?extraX:['scoreboard','focus'].includes(id)?extraX/2:0),
+    y:part.y+(['leftRoster','rightRoster','focus'].includes(id)?extraY:0)};
+}
 export function applyLayout(hud,input){
   const layout=resolveLayout(input);
   for(const [id,base] of Object.entries(layoutParts)){
     const node=hud.querySelector(base.selector);if(!node)continue;
     const part=layout.elements[id];
-    Object.assign(node.style,{left:part.x+'px',top:part.y+'px',right:'auto',bottom:'auto',transform:`scale(${part.scale})`,transformOrigin:'top left',opacity:String(part.opacity),display:part.visible?'':'none'});
+    const viewportWidth=Number(hud.dataset.viewportWidth)||1920,viewportHeight=Number(hud.dataset.viewportHeight)||1080;
+    const position=viewportPosition(id,part,viewportWidth,viewportHeight);
+    if(hud.dataset.viewportHeight&&['leftRoster','rightRoster'].includes(id)){
+      const width=(node.offsetWidth||base.width)*part.scale;
+      const height=(node.offsetHeight||base.height)*part.scale;
+      const sideMargin=Math.max(0,id==='leftRoster'?position.x:viewportWidth-position.x-width);
+      position.y=Math.max(0,viewportHeight-height-sideMargin);
+    }
+    Object.assign(node.style,{left:position.x+'px',top:position.y+'px',right:'auto',bottom:'auto',transform:`scale(${part.scale})`,transformOrigin:'top left',opacity:String(part.opacity),display:part.visible?'':'none'});
   }
   hud.classList.add('custom-layout');hud.dataset.font=layout.theme.font;
   const hex=layout.theme.panel;

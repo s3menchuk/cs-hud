@@ -39,7 +39,7 @@ const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 function winnerLogo(settings,side){
   const name=settings[side+'Name']||'',logo=settings[side+'Logo'];
   const image=typeof logo==='string'&&/^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(logo);
-  return `<span class="map-winner-logo" title="${escape(name)}">${image?`<img src="${escape(logo)}" alt="${escape(name)}">`:`<span class="map-winner-tag">${escape(settings[side+'Tag']||name.slice(0,3))}</span>`}</span>`;
+  return image?`<span class="map-winner-logo" title="${escape(name)}"><img src="${escape(logo)}" alt="${escape(name)}"></span>`:'';
 }
 export function renderSeriesHistory(settings,state){
   const series=seriesSummary(settings);

@@ -71,5 +71,19 @@ try {
   assert.equal((await post('/api/settings',bo1)).status,200);
   payload=await (await get('/api/state')).json();assert.equal(payload.settings.seriesFormat,1);assert.equal(payload.settings.seriesMaps.length,1);
   assert.equal(JSON.parse(await readFile(testSettings,'utf8')).seriesFormat,1);
+  assert.match(await (await get('/gamestate_integration_broadcast.cfg')).text(),/"allgrenades"\s+"1"/);
+  const projectile=position=>({map:{name:'de_ancient',round:1},grenades:{flight:{type:'flashbang',owner:'0',position,lifetime:'0.5'}}});
+  await post('/gsi',projectile('0,0,0'));await post('/gsi',projectile('100,100,50'));
+  payload=await (await get('/api/state')).json();
+  assert.deepEqual(payload.state.grenades[0].trajectory,[[0,0,0],[100,100,50]]);
+  await post('/gsi',{map:{name:'de_ancient',round:1},grenades:{}});
+  payload=await (await get('/api/state')).json();assert.deepEqual(payload.state.grenades,[]);
+  const deathPacket=(health,position,round=2)=>({map:{name:'de_ancient',round},allplayers:{one:{team:'CT',state:{health},position}}});
+  await post('/gsi',deathPacket(100,'10,20,30'));
+  await post('/gsi',deathPacket(0,'15,25,35'));
+  await post('/gsi',deathPacket(0,'500,600,-300'));
+  payload=await (await get('/api/state')).json();assert.deepEqual(payload.state.players[0].position,[15,25,35]);
+  await post('/gsi',deathPacket(0,'70,80,90',3));
+  payload=await (await get('/api/state')).json();assert.deepEqual(payload.state.players[0].position,[70,80,90]);
   console.log('PASS: HTTP assets, SSE, series validation/persistence, CT/T swaps, demo actions, GSI, live/demo isolation.');
 } finally {server.kill();await unlink(testSettings).catch(error=>{if(error.code!=='ENOENT')throw error;});for(const file of avatarFiles)await unlink(join(testAvatars,file));await rmdir(testAvatars).catch(error=>{if(error.code!=='ENOENT')throw error;});await rmdir(testDirectory);}

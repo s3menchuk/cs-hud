@@ -15,14 +15,18 @@ test('One player changing side does not swap both teams',()=>{
   const tracker=createTeamTracker(),state=roster('CT');tracker.update(state,'CT');
   state.players[0].team='T';assert.equal(tracker.update(state,'CT'),'CT');
 });
-test('Broadcast swaps names, logos, colors and series scores with team identities',()=>{
+test('Broadcast keeps names, logos, colors, series results and rosters in place across side switches',()=>{
   const settings={...defaults,leftName:'Alpha',rightName:'Bravo',leftLogo:'a',rightLogo:'b',seriesMaps:[{map:'Dust2',leftScore:13,rightScore:8,completed:true}]};
-  const view=displaySettings(settings,'T');
-  assert.equal(view.leftSide,'CT');assert.equal(view.leftName,'Bravo');assert.equal(view.rightName,'Alpha');
-  assert.equal(view.leftLogo,'b');assert.equal(view.rightLogo,'a');assert.equal(view.accentLeft,settings.accentRight);
-  assert.equal(view.seriesMaps[0].leftScore,8);assert.equal(view.seriesMaps[0].rightScore,13);
-  assert.equal(settings.seriesMaps[0].leftScore,13);assert.equal(settings.leftName,'Alpha');
+  const tracker=createTeamTracker();
+  for(const side of ['CT','T','CT']){
+    const state=roster(side),view=displaySettings(settings,tracker.update(state,'CT'));
+    assert.equal(view.leftSide,side);
+    for(const key of ['leftName','rightName','leftLogo','rightLogo','accentLeft','accentRight','seriesMaps'])assert.deepEqual(view[key],settings[key]);
+    assert.deepEqual(state.players.filter(p=>p.team===view.leftSide).map(p=>p.id),['0','1','2','3','4']);
+    assert.deepEqual(state.players.filter(p=>p.team!==view.leftSide).map(p=>p.id),['5','6','7','8','9']);
+  }
 });
+
 test('Manual correction resets the tracked team assignment',()=>{
   const tracker=createTeamTracker();tracker.update(roster('CT'),'CT');tracker.reset(roster('CT'),'T');
   assert.equal(tracker.update(roster('CT'),'T'),'T');
